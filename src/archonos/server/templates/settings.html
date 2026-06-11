@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Settings - ArchonOS{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Settings</h1>
+<div class="card p-4">
+    <h2 class="font-bold mb-3">Project</h2>
+    <div class="grid grid-cols-2 gap-2 text-sm">
+        <div class="text-text-secondary">Project Name:</div>
+        <div>default</div>
+        <div class="text-text-secondary">Data Directory:</div>
+        <div class="font-mono text-xs">~/.archonos/default/</div>
+    </div>
+</div>
+<div class="card p-4 mt-4">
+    <h2 class="font-bold mb-3">CLI Commands</h2>
+    <div class="space-y-2 text-sm font-mono">
+        <div><span class="text-accent-cyan">archonos init</span> — Initialize project</div>
+        <div><span class="text-accent-cyan">archonos status</span> — Show status</div>
+        <div><span class="text-accent-cyan">archonos import &lt;path&gt;</span> — Import files</div>
+        <div><span class="text-accent-cyan">archonos search &lt;query&gt;</span> — Search KB</div>
+        <div><span class="text-accent-cyan">archonos remember "text"</span> — Store memory</div>
+        <div><span class="text-accent-cyan">archonos recall</span> — Recall memories</div>
+    </div>
+</div>
+<div class="card p-4 mt-4">
+    <h2 class="font-bold mb-3">About</h2>
+    <div class="text-text-secondary text-sm">
+        <p>ArchonOS v0.1.0</p>
+        <p>Local-first AI operating system</p>
+    </div>
+</div>
+{% endblock %}
