@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArchonOS · Dashboard</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: { primary: '#0d1117', secondary: '#161b22', tertiary: '#21262d', elevated: '#30363d' },
+                        text: { primary: '#e6edf3', secondary: '#8b949e', muted: '#6e7681' },
+                        accent: { cyan: '#58a6ff', green: '#3fb950', yellow: '#d29922', red: '#f85149', purple: '#a371f7' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0d1117; color: #e6edf3; }
+        .card { background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; }
+        .btn { padding: 8px 16px; border-radius: 6px; font-weight: 500; transition: all 0.2s; display: inline-block; text-decoration: none; }
+        .btn-primary { background: #238636; color: white; }
+        .btn-primary:hover { background: #2ea043; }
+        .btn-secondary { background: #30363d; color: #e6edf3; }
+        .btn-secondary:hover { background: #3d444d; }
+        .input { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; padding: 8px 12px; border-radius: 6px; width: 100%; }
+        .input:focus { outline: none; border-color: #58a6ff; }
+    </style>
+</head>
+<body class="min-h-screen font-sans">
+    <!-- Header -->
+    <header class="border-b border-gray-700 bg-bg-secondary">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-accent-cyan rounded-lg flex items-center justify-center font-bold text-bg-primary text-xl">A</div>
+                <span class="font-bold text-lg">ArchonOS</span>
+            </div>
+            <nav class="flex items-center gap-4 text-sm">
+                <a href="#" class="text-accent-cyan">Dashboard</a>
+                <a href="#" class="text-text-secondary hover:text-text-primary">Knowledge</a>
+                <a href="#" class="text-text-secondary hover:text-text-primary">Memory</a>
+                <a href="#" class="text-text-secondary hover:text-text-primary">Workflows</a>
+                <a href="#" class="text-text-secondary hover:text-text-primary">⚙️</a>
+            </nav>
+        </div>
+    </header>
+    
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        <h1 class="text-2xl font-bold mb-6">Dashboard</h1>
+        
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="card p-4">
+                <div class="text-text-secondary text-sm">Documents</div>
+                <div class="text-3xl font-bold text-accent-cyan">127</div>
+            </div>
+            <div class="card p-4">
+                <div class="text-text-secondary text-sm">Chunks</div>
+                <div class="text-3xl font-bold text-accent-cyan">1,453</div>
+            </div>
+            <div class="card p-4">
+                <div class="text-text-secondary text-sm">Memories</div>
+                <div class="text-3xl font-bold text-accent-yellow">89</div>
+            </div>
+            <div class="card p-4">
+                <div class="text-text-secondary text-sm">Workflows</div>
+                <div class="text-3xl font-bold text-accent-purple">12</div>
+            </div>
+        </div>
+        
+        <!-- Project Info -->
+        <div class="card p-4 mb-6">
+            <h2 class="font-bold mb-3">Project</h2>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+                <div class="text-text-secondary">Name:</div>
+                <div>default</div>
+                <div class="text-text-secondary">Database:</div>
+                <div class="font-mono text-xs">~/.archonos/default/archonos.db</div>
+                <div class="text-text-secondary">Schema:</div>
+                <div>v1</div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div>
+            <h2 class="font-bold mb-3">Quick Actions</h2>
+            <div class="flex gap-3 flex-wrap">
+                <a href="#" class="btn btn-secondary">Search Knowledge</a>
+                <a href="#" class="btn btn-secondary">View Memory</a>
+                <a href="#" class="btn btn-secondary">Manage Workflows</a>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="border-t border-gray-700 mt-12 py-4 text-center text-text-muted text-sm">
+        <span class="text-accent-green">●</span> Online | v0.1.0 | SQLite
+    </footer>
+</body>
+</html>
