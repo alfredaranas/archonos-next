@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Knowledge - ArchonOS{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Knowledge Base</h1>
+<form method="get" action="/kb" class="mb-6">
+    <div class="flex gap-3">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search knowledge..." class="input flex-1">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form>
+{% if query %}
+    <div class="mb-4 text-text-secondary">
+        {% if results %}{{ results|length }} result(s) found{% else %}No results found{% endif %}
+    </div>
+{% endif %}
+{% for r in results %}
+<div class="card p-4 mb-3">
+    <div class="font-bold text-accent-cyan mb-2">{{ r.title }}</div>
+    <div class="text-text-secondary text-sm mb-2">{{ r.snippet|safe }}</div>
+    <div class="text-text-muted text-xs">rank: {{ "%.2f"|format(r.rank) }}</div>
+</div>
+{% endfor %}
+{% if not query %}
+<div class="text-text-muted text-center py-12">Enter a query to search your knowledge base</div>
+{% endif %}
+{% endblock %}
