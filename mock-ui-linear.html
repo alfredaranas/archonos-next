@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArchonOS · Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;510;590&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        :root {
+            --bg-primary: #08090a;
+            --bg-surface: #0f1011;
+            --bg-elevated: #191a1b;
+            --bg-hover: #28282c;
+            --text-primary: #f7f8f8;
+            --text-secondary: #d0d6e0;
+            --text-muted: #8a8f98;
+            --text-quaternary: #62666d;
+            --accent: #5e6ad2;
+            --accent-hover: #7170ff;
+            --border-subtle: rgba(255,255,255,0.05);
+            --border-standard: rgba(255,255,255,0.08);
+            --success: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            font-feature-settings: 'cv01', 'ss03';
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            min-height: 100vh;
+            font-size: 16px;
+            line-height: 1.50;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-subtle);
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-mark {
+            width: 32px;
+            height: 32px;
+            background: var(--accent);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 590;
+            color: white;
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-weight: 510;
+            color: var(--text-primary);
+            font-size: 17px;
+            letter-spacing: -0.24px;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 510;
+            padding: 6px 0;
+            transition: color 0.15s;
+        }
+
+        nav a:hover,
+        nav a.active {
+            color: var(--text-primary);
+        }
+
+        nav a.active {
+            border-bottom: 2px solid var(--accent);
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 400;
+            color: var(--text-primary);
+            letter-spacing: -0.704px;
+            margin-bottom: 32px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .stat-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-standard);
+            border-radius: 8px;
+            padding: 20px;
+            transition: background 0.15s;
+        }
+
+        .stat-card:hover {
+            background: var(--bg-elevated);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 510;
+            letter-spacing: -0.864px;
+            color: var(--text-primary);
+        }
+
+        .stat-value.cyan { color: #7170ff; }
+        .stat-value.yellow { color: #d29922; }
+        .stat-value.purple { color: #a371f7; }
+        .stat-value.green { color: var(--success); }
+
+        .section {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-standard);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .section h2 {
+            font-size: 16px;
+            font-weight: 590;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            letter-spacing: -0.24px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 8px 16px;
+            font-size: 14px;
+        }
+
+        .info-label {
+            color: var(--text-muted);
+        }
+
+        .info-value {
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 510;
+            text-decoration: none;
+            transition: all 0.15s;
+            cursor: pointer;
+            border: none;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.04);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-standard);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        footer {
+            border-top: 1px solid var(--border-subtle);
+            padding: 24px;
+            text-align: center;
+            color: var(--text-quaternary);
+            font-size: 13px;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-mark">A</div>
+                <span class="logo-text">ArchonOS</span>
+            </div>
+            <nav>
+                <a href="#" class="active">Dashboard</a>
+                <a href="#">Knowledge</a>
+                <a href="#">Memory</a>
+                <a href="#">Workflows</a>
+                <a href="#">⚙️</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <h1>Dashboard</h1>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Documents</div>
+                <div class="stat-value cyan">127</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Chunks</div>
+                <div class="stat-value cyan">1,453</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Memories</div>
+                <div class="stat-value yellow">89</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Workflows</div>
+                <div class="stat-value purple">12</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Project</h2>
+            <div class="info-grid">
+                <div class="info-label">Name</div>
+                <div class="info-value">default</div>
+                <div class="info-label">Database</div>
+                <div class="info-value">~/.archonos/default/archonos.db</div>
+                <div class="info-label">Schema</div>
+                <div class="info-value">v1</div>
+                <div class="info-label">Status</div>
+                <div class="info-value" style="color: var(--success);">Online</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Quick Actions</h2>
+            <div class="btn-group">
+                <button class="btn btn-primary">Search Knowledge</button>
+                <button class="btn btn-secondary">View Memory</button>
+                <button class="btn btn-secondary">Manage Workflows</button>
+                <button class="btn btn-secondary">Run Chat</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <span class="status-dot"></span>Online · v0.1.0 · SQLite
+    </footer>
+</body>
+</html>
