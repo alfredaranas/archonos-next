@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Memory - ArchonOS{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Memory</h1>
+<form method="get" action="/memory" class="mb-6">
+    <div class="flex gap-3">
+        <input type="text" name="query" value="{{ query }}" placeholder="Search memories..." class="input flex-1">
+        <select name="kind" class="input w-auto">
+            <option value="">All kinds</option>
+            <option value="decision" {% if kind == 'decision' %}selected{% endif %}>Decision</option>
+            <option value="lesson" {% if kind == 'lesson' %}selected{% endif %}>Lesson</option>
+            <option value="note" {% if kind == 'note' %}selected{% endif %}>Note</option>
+            <option value="state" {% if kind == 'state' %}selected{% endif %}>State</option>
+            <option value="workflow_outcome" {% if kind == 'workflow_outcome' %}selected{% endif %}>Workflow Outcome</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form>
+{% for m in memories %}
+<div class="card p-4 mb-3">
+    <div class="flex items-center gap-2 mb-2">
+        <span class="px-2 py-0.5 text-xs rounded {% if m.kind == 'decision' %}bg-accent-yellow text-bg-primary{% elif m.kind == 'lesson' %}bg-accent-purple text-white{% else %}bg-bg-tertiary text-text-secondary{% endif %}">{{ m.kind }}</span>
+        <span class="text-text-muted text-sm">{{ m.created_at }}</span>
+    </div>
+    <div>{{ m.body }}</div>
+</div>
+{% else %}
+<div class="text-text-muted text-center py-12">No memories found. Store one with: <code class="bg-bg-tertiary px-2 py-1 rounded">archonos remember "your thought"</code></div>
+{% endfor %}
+{% endblock %}
