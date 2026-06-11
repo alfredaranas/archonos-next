@@ -2,7 +2,7 @@
 """
 ArchonOS Wiki Server
 A Flask-based wiki that serves content from the ArchonOS knowledge base.
-Features: Paths, Modules, Search, Glossary
+Features: Paths, Modules, Search, Glossary, Diagrams, Chat
 """
 
 from flask import Flask, render_template_string, jsonify, request
@@ -10,6 +10,8 @@ import os
 import json
 from pathlib import Path
 import re
+from datetime import datetime
+from urllib.parse import quote
 
 app = Flask(__name__)
 
@@ -17,6 +19,7 @@ app = Flask(__name__)
 KB_DIR = Path("kb")
 LESSONS_DIR = KB_DIR / "lessons"
 TRANSCRIPTS_DIR = KB_DIR / "transcripts"
+DIAGRAMS_DIR = KB_DIR / "diagrams"
 
 def get_lessons():
     """Get all lessons from the lessons directory."""
@@ -89,7 +92,23 @@ def get_glossary():
         {"term": "Doppler", "definition": "Change in frequency due to moving reflectors"},
     ]
 
-# HTML Template (truncated for brevity - full template in wiki.py)
+def get_diagrams():
+    """Get all diagram files."""
+    diagrams = []
+    if DIAGRAMS_DIR.exists():
+        for f in DIAGRAMS_DIR.glob("*.md"):
+            content = f.read_text()
+            title_match = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+            title = title_match.group(1) if title_match else f.stem
+            diagrams.append({
+                "id": f.stem,
+                "title": title,
+                "file": f.name,
+                "content": content
+            })
+    return diagrams
+
+# HTML Template
 HOME_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -134,7 +153,9 @@ HOME_TEMPLATE = """<!DOCTYPE html>
             <a href="/paths">Paths</a>
             <a href="/modules">Modules</a>
             <a href="/glossary">Glossary</a>
+            <a href="/diagrams">Diagrams</a>
             <a href="/search">Search</a>
+            <a href="/chat">Chat</a>
         </nav>
         <header>
             <h1>🎓 <span>Sonography Wiki</span></h1>
@@ -147,7 +168,7 @@ HOME_TEMPLATE = """<!DOCTYPE html>
         <div class="stats">
             <div class="stat"><div class="stat-value">8</div><div class="stat-label">Video Lessons</div></div>
             <div class="stat"><div class="stat-value">3</div><div class="stat-label">Learning Paths</div></div>
-            <div class="stat"><div class="stat-value">10+</div><div class="stat-label">Concepts</div></div>
+            <div class="stat"><div class="stat-value">2</div><div class="stat-label">Diagrams</div></div>
         </div>
         <div class="section">
             <h2>📚 Learning Paths</h2>
@@ -212,6 +233,26 @@ def search():
                 results.append({"title": lesson["title"], "snippet": content[:200]})
     return f"<html><body><h1>Search: {query}</h1>{len(results)} results</body></html>"
 
+# Diagrams routes
+@app.route('/diagrams')
+def diagrams_page():
+    diagrams = get_diagrams()
+    return f"<html><body><h1>Diagrams</h1>{'<br>'.join([f'<a href=\"/diagram/{d['id']}\">{d['title']}</a>' for d in diagrams])}</body></html>"
+
+@app.route('/diagram/<diagram_id>')
+def diagram_page(diagram_id):
+    diagrams = get_diagrams()
+    diagram = next((d for d in diagrams if d["id"] == diagram_id), None)
+    if not diagram:
+        return "Diagram not found", 404
+    mermaid_url = f"https://mermaid.live/edit/#{quote(diagram['content'])}"
+    return f"""<html><body>
+        <h1>{diagram['title']}</h1>
+        <pre style="background:#222;padding:20px;border-radius:10px;overflow:auto;">{diagram['content']}</pre>
+        <p><a href="{mermaid_url}" target="_blank">🎨 Edit in Mermaid Live Editor</a></p>
+    </body></html>"""
+
+# API routes
 @app.route('/api/lessons')
 def api_lessons():
     return jsonify(get_lessons())
@@ -219,6 +260,26 @@ def api_lessons():
 @app.route('/api/paths')
 def api_paths():
     return jsonify(get_paths())
+
+@app.route('/api/diagrams')
+def api_diagrams():
+    return jsonify(get_diagrams())
+
+# Chat routes (simplified)
+@app.route('/chat')
+def chat_page():
+    return """<!DOCTYPE html>
+<html><head><title>Chat - Sonography Wiki</title></head>
+<body style="background:#0f0c29;color:#eee;font-family:sans-serif;padding:40px;text-align:center;">
+    <h1>💬 AI Tutor</h1>
+    <p>Chat feature requires MINIMAX_API_KEY to be set locally.</p>
+    <p>Run: <code>export MINIMAX_API_KEY="your-key"</code></p>
+    <p><a href="/" style="color:#00d9ff;">← Back to Home</a></p>
+</body></html>"""
+
+@app.route('/api/chat', methods=['POST'])
+def api_chat():
+    return jsonify({"error": "API key not configured"})
 
 if __name__ == '__main__':
     print("🎓 Starting Sonography Wiki...")
