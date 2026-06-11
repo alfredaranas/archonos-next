@@ -6,6 +6,7 @@ Exit codes: 0 ok · 1 user error · 2 system error.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from archonos import __version__
@@ -86,6 +87,85 @@ def _cmd_search(args: argparse.Namespace) -> int:
         conn.close()
 
 
+def _cmd_remember(args: argparse.Namespace) -> int:
+    from archonos.memory import ops as mem_ops
+    from archonos.storage import db
+    
+    conn = db.get_connection(args.project)
+    try:
+        mem_id = mem_ops.remember(conn, args.kind, args.body, args.project)
+        print(f"Memory stored: id={mem_id}")
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_recall(args: argparse.Namespace) -> int:
+    from archonos.memory import ops as mem_ops
+    from archonos.storage import db
+    
+    conn = db.get_connection(args.project)
+    try:
+        results = mem_ops.recall(conn, query=args.query, kind=args.kind, limit=args.limit)
+        if not results:
+            print("No memories found")
+            return 0
+        
+        for r in results:
+            print(f"[{r.kind}] {r.created_at}")
+            print(f"  {r.body}")
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_workflow_register(args: argparse.Namespace) -> int:
+    from archonos.workflows import ops as wf_ops
+    from archonos.storage import db
+    
+    conn = db.get_connection(args.project)
+    try:
+        spec = json.loads(args.spec) if args.spec else {"steps": []}
+        wf_id = wf_ops.register(conn, args.name, spec)
+        print(f"Workflow registered: {args.name} (id={wf_id})")
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_workflow_list(args: argparse.Namespace) -> int:
+    from archonos.workflows import ops as wf_ops
+    from archonos.storage import db
+    
+    conn = db.get_connection(args.project)
+    try:
+        workflows = wf_ops.list_workflows(conn)
+        if not workflows:
+            print("No workflows registered")
+            return 0
+        
+        for wf in workflows:
+            spec = json.loads(wf.spec)
+            steps = len(spec.get("steps", []))
+            print(f"{wf.name}: v{wf.version}, {steps} steps")
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_workflow_run(args: argparse.Namespace) -> int:
+    from archonos.workflows import ops as wf_ops
+    from archonos.storage import db
+    
+    conn = db.get_connection(args.project)
+    try:
+        run_id = wf_ops.run_workflow(conn, args.name)
+        print(f"Workflow run: id={run_id}")
+        return 0
+    finally:
+        conn.close()
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="archonos", description="ArchonOS Next")
     p.add_argument("--version", action="version", version=f"archonos {__version__}")
@@ -118,6 +198,39 @@ def build_parser() -> argparse.ArgumentParser:
     sp_search.add_argument("--project", default="default")
     sp_search.add_argument("--limit", type=int, default=10, help="max results (default: 10)")
     sp_search.set_defaults(fn=_cmd_search)
+
+    # remember
+    sp_mem = sub.add_parser("remember", help="store a memory")
+    sp_mem.add_argument("body", help="memory content")
+    sp_mem.add_argument("--kind", default="note", help="memory kind: decision, state, lesson, note, workflow_outcome")
+    sp_mem.add_argument("--project", default="default")
+    sp_mem.set_defaults(fn=_cmd_remember)
+
+    # recall
+    sp_recall = sub.add_parser("recall", help="recall memories")
+    sp_recall.add_argument("--query", help="search query")
+    sp_recall.add_argument("--kind", help="filter by kind")
+    sp_recall.add_argument("--limit", type=int, default=10, help="max results")
+    sp_recall.add_argument("--project", default="default")
+    sp_recall.set_defaults(fn=_cmd_recall)
+
+    # workflow register
+    sp_wf_reg = sub.add_parser("workflow-register", help="register a workflow")
+    sp_wf_reg.add_argument("name", help="workflow name")
+    sp_wf_reg.add_argument("--spec", default="{}", help="workflow spec JSON")
+    sp_wf_reg.add_argument("--project", default="default")
+    sp_wf_reg.set_defaults(fn=_cmd_workflow_register)
+
+    # workflow list
+    sp_wf_list = sub.add_parser("workflow-list", help="list workflows")
+    sp_wf_list.add_argument("--project", default="default")
+    sp_wf_list.set_defaults(fn=_cmd_workflow_list)
+
+    # workflow run
+    sp_wf_run = sub.add_parser("workflow-run", help="run a workflow")
+    sp_wf_run.add_argument("name", help="workflow name")
+    sp_wf_run.add_argument("--project", default="default")
+    sp_wf_run.set_defaults(fn=_cmd_workflow_run)
 
     return p
 
