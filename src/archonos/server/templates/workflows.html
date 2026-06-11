@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Workflows - ArchonOS{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Workflows</h1>
+{% for wf in workflows %}
+<div class="card p-4 mb-3">
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="font-bold text-accent-purple">{{ wf.name }}</div>
+            <div class="text-text-secondary text-sm">v{{ wf.version }} · {{ wf.spec.steps|length }} step(s)</div>
+        </div>
+        <button hx-post="/workflows/run/{{ wf.name }}" hx-swap="outerHTML" class="btn btn-primary">Run</button>
+    </div>
+</div>
+{% else %}
+<div class="text-text-muted text-center py-12">No workflows registered. Create one with: <code class="bg-bg-tertiary px-2 py-1 rounded">archonos workflow-register test --spec '{"steps": []}'</code></div>
+{% endfor %}
+{% endblock %}
