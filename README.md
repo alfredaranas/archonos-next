@@ -1,20 +1,90 @@
 # ArchonOS Next
 
-Local-first AI operating system: knowledge, memory, workflows, continuity. The model is replaceable; the knowledge is durable.
+Local-first AI operating system — KB-as-OS with approval gates, memory, and workflows.
 
-## Status
+## Quick Start
 
-Engineering phase · Architecture frozen · Building toward Local Alpha (Windows 11 + WSL2 + SQLite, zero cloud).
+```bash
+# Clone and install
+git clone https://github.com/alfredaranas/archonos-next.git
+cd archonos-next
+pip install -e .
 
-## Read in this order
+# Initialize
+archonos init
 
-1. `docs/founding/CODEX_HANDOFF.md` — founding directive and scope law
-2. `docs/BASE_PLAN.md` — milestones 0.5–6 with falsifiable gates
-3. `docs/architecture/CORE_ARCHITECTURE.md` — frozen schema DDL, workflow primitive, module contracts
+# Import knowledge
+archonos import ./docs
 
-## Division of labor
+# Search
+archonos search "your query"
 
-- **Claude** — architecture, planning, decision records
-- **Codex** — implementation, tests, PRs per milestone
+# Remember
+archonos remember "important decision" --kind decision
 
-Architecture changes require a decision record in `docs/architecture/decisions/`. Gate tests define done.
+# Chat with LLM
+archonos chat "hello" --provider minimax
+```
+
+## Commands
+
+| Command | Description |
+|---------|------------|
+| `init` | Initialize project |
+| `status` | Show project state |
+| `healthcheck` | Run health checks |
+| `import <path>` | Import files into KB |
+| `search <query>` | Search knowledge |
+| `remember "text"` | Store memory |
+| `recall` | Recall memories |
+| `workflow-register` | Register workflow |
+| `workflow-list` | List workflows |
+| `workflow-run` | Run workflow |
+| `chat` | Chat with LLM |
+| `llm-providers` | List providers |
+
+## Configuration
+
+Set environment variables:
+
+```bash
+export MINIMAX_API_KEY="your-key"
+export MINIMAX_MODEL="MiniMax-M2.5"
+export LLM_PROVIDER="minimax"
+```
+
+## Docker
+
+```bash
+docker build -t archonos .
+docker run -p 8090:8090 -v ~/.archonos:/home/archonos/.archonos archonos
+```
+
+## Project Structure
+
+```
+archonos-next/
+├── src/archonos/
+│   ├── cli/          # CLI commands
+│   ├── core/        # init, status, healthcheck
+│   ├── knowledge/   # import, search
+│   ├── memory/      # remember, recall
+│   ├── workflows/   # workflow ops
+│   ├── llm/        # LLM providers
+│   ├── server/      # Web UI
+│   └── storage/     # SQLite + migrations
+└── Dockerfile
+```
+
+## Features
+
+- **Knowledge Base**: FTS5 full-text search
+- **Memory**: Decision/state/lesson tracking
+- **Workflows**: Programmable automation
+- **LLM**: Model-replaceable (MiniMax, OpenAI, Anthropic)
+- **Web UI**: FastAPI + HTMX dashboard
+- **Docker**: Single-container deployment
+
+## License
+
+MIT
