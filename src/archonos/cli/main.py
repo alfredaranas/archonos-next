@@ -46,19 +46,78 @@ def _cmd_healthcheck(args: argparse.Namespace) -> int:
     return 0 if h.ok else 2
 
 
+def _cmd_import(args: argparse.Namespace) -> int:
+    from pathlib import Path
+    from archonos.knowledge import import_ as kb_import
+    from archonos.storage import db
+    
+    conn = db.get_connection(args.project)
+    try:
+        path = Path(args.path).resolve()
+        if not path.exists():
+            print(f"Path not found: {path}", file=sys.stderr)
+            return 1
+        
+        report = kb_import.import_path(conn, path)
+        print(f"Documents: {report.docs_added} added, {report.skipped_dupes} skipped")
+        print(f"Chunks: {report.chunks_added} added")
+        return 0
+    finally:
+        conn.close()
+
+
+def _cmd_search(args: argparse.Namespace) -> int:
+    from archonos.knowledge import search as kb_search
+    from archonos.storage import db
+    
+    conn = db.get_connection(args.project)
+    try:
+        results = kb_search.search(conn, args.query, k=args.limit)
+        if not results:
+            print("No results found")
+            return 0
+        
+        for r in results:
+            print(f"{r.title}")
+            print(f"  {r.snippet}")
+            print(f"  rank: {r.rank:.2f}")
+        return 0
+    finally:
+        conn.close()
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="archonos", description="ArchonOS Next")
     p.add_argument("--version", action="version", version=f"archonos {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
-    for name, fn, help_ in [
-        ("init", _cmd_init, "create or verify a project"),
-        ("status", _cmd_status, "show project state"),
-        ("healthcheck", _cmd_healthcheck, "run health checks"),
-    ]:
-        sp = sub.add_parser(name, help=help_)
-        sp.add_argument("--project", default="default")
-        sp.set_defaults(fn=fn)
+    # init
+    sp_init = sub.add_parser("init", help="create or verify a project")
+    sp_init.add_argument("--project", default="default")
+    sp_init.set_defaults(fn=_cmd_init)
+
+    # status
+    sp_status = sub.add_parser("status", help="show project state")
+    sp_status.add_argument("--project", default="default")
+    sp_status.set_defaults(fn=_cmd_status)
+
+    # healthcheck
+    sp_hc = sub.add_parser("healthcheck", help="run health checks")
+    sp_hc.add_argument("--project", default="default")
+    sp_hc.set_defaults(fn=_cmd_healthcheck)
+
+    # import
+    sp_import = sub.add_parser("import", help="import files into knowledge base")
+    sp_import.add_argument("path", help="file or folder to import")
+    sp_import.add_argument("--project", default="default")
+    sp_import.set_defaults(fn=_cmd_import)
+
+    # search
+    sp_search = sub.add_parser("search", help="search knowledge base")
+    sp_search.add_argument("query", help="search query")
+    sp_search.add_argument("--project", default="default")
+    sp_search.add_argument("--limit", type=int, default=10, help="max results (default: 10)")
+    sp_search.set_defaults(fn=_cmd_search)
 
     return p
 
