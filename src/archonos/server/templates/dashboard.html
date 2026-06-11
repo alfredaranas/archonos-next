@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - ArchonOS{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Dashboard</h1>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="card p-4">
+        <div class="text-text-secondary text-sm">Documents</div>
+        <div class="text-3xl font-bold text-accent-cyan">{{ status.documents }}</div>
+    </div>
+    <div class="card p-4">
+        <div class="text-text-secondary text-sm">Chunks</div>
+        <div class="text-3xl font-bold text-accent-cyan">{{ status.chunks }}</div>
+    </div>
+    <div class="card p-4">
+        <div class="text-text-secondary text-sm">Memories</div>
+        <div class="text-3xl font-bold text-accent-yellow">{{ status.memories }}</div>
+    </div>
+    <div class="card p-4">
+        <div class="text-text-secondary text-sm">Workflows</div>
+        <div class="text-3xl font-bold text-accent-purple">{{ status.workflows }}</div>
+    </div>
+</div>
+<div class="card p-4">
+    <h2 class="font-bold mb-3">Project</h2>
+    <div class="grid grid-cols-2 gap-2 text-sm">
+        <div class="text-text-secondary">Name:</div>
+        <div>{{ status.project }}</div>
+        <div class="text-text-secondary">Database:</div>
+        <div class="font-mono text-xs">{{ status.db_path }}</div>
+        <div class="text-text-secondary">Schema:</div>
+        <div>v{{ status.schema_version }}</div>
+    </div>
+</div>
+<div class="mt-6">
+    <h2 class="font-bold mb-3">Quick Actions</h2>
+    <div class="flex gap-3">
+        <a href="/kb" class="btn btn-secondary">Search Knowledge</a>
+        <a href="/memory" class="btn btn-secondary">View Memory</a>
+        <a href="/workflows" class="btn btn-secondary">Manage Workflows</a>
+    </div>
+</div>
+{% endblock %}
