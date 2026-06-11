@@ -1,0 +1,42 @@
+{
+  "sonography": {
+    "description": "Free sonography learning resources",
+    "youtube": [
+      {"name": "Gulf Coast Ultrasound Institute", "url": "https://www.youtube.com/user/gulfcoastultrasound", "focus": "Physics, scanning, registry prep"},
+      {"name": "123radiology", "url": "https://www.youtube.com/user/123radiology", "focus": "Ultrasound education"},
+      {"name": "The Sonography Studio", "url": "https://www.youtube.com/@sonographystudio", "focus": "OB/GYN scanning"},
+      {"name": "My Ultrasound Tutor", "url": "https://www.youtube.com/channel/UCqfEJrCjTkgECJ01B1Fa3mA", "focus": "Physics SPI, OB/GYN"}
+    ],
+    "podcasts": [
+      {"name": "The Sonography Lounge", "url": "https://thesonographylounge.podbean.com/feed.xml", "host": "Lori Green, Trisha Reo"},
+      {"name": "Ultrasound Podcast", "url": "https://podcasts.apple.com/us/podcast/ultrasound-podcast/id449451303", "host": "Core Ultrasound"},
+      {"name": "The Scan School", "url": "https://podcast.feedspot.com/ultrasound_podcasts/", "focus": "Veterinary ultrasound"}
+    ],
+    "websites": [
+      {"name": "Gulf Coast Free CME", "url": "https://www.gcus.com/cme/free", "type": "Free video lectures"},
+      {"name": "Core Ultrasound", "url": "https://coreultrasound.com/", "type": "5 Minute Sono, articles"},
+      {"name": "ARDMS", "url": "https://www.ardms.org/get-certified/specialties/", "type": "Certification"}
+    ],
+    "courses": [
+      {"name": "Khan Academy Anatomy", "url": "https://www.khanacademy.org/science/health-and-medicine/human-anatomy-and-physiology", "cost": "Free"},
+      {"name": "OpenStax Anatomy", "url": "https://openstax.org/subjects/anatomy-and-physiology", "cost": "Free"}
+    ],
+    "tools": {
+      "youtube_transcript": [
+        {"name": "youtube-transcript-api", "url": "https://github.com/jdepoix/youtube-transcript-api", "desc": "Python API for YouTube transcripts"},
+        {"name": "YoutubeTranscriptApi", "url": "https://github.com/yoanbernabeu/YoutubeTranscriptApi", "desc": "REST API wrapper"}
+      ],
+      "wiki_generators": [
+        {"name": "xlog", "url": "https://github.com/emad-elsaid/xlog", "desc": "Git-native wiki framework"},
+        {"name": "digital-garden", "url": "https://github.com/southpawriter02/digital-garden", "desc": "Static site for knowledge bases"}
+      ],
+      "knowledge_graph": [
+        {"name": "vuepress-plugin-knowledge-graph", "url": "https://github.com/Eason596/vuepress-plugin-knowledge-graph", "desc": "Obsidian-like graph view"},
+        {"name": "autology", "url": "https://github.com/Curt-Park/autology", "desc": "Claude Code plugin for knowledge graphs"}
+      ],
+      "podcast": [
+        {"name": "podfeed", "url": "https://github.com/MMazzocchi/podfeed", "desc": "Podcast RSS parser"}
+      ]
+    }
+  }
+}
