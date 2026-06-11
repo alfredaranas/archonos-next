@@ -1,0 +1,66 @@
+{
+  "sonography": {
+    "channels": [
+      {
+        "name": "Gulf Coast Ultrasound Institute",
+        "url": "https://www.youtube.com/user/gulfcoastultrasound",
+        "focus": "Physics, scanning, registry prep",
+        "subscribers": "180K+ students",
+        "cost": "Free videos + paid courses"
+      },
+      {
+        "name": "123radiology",
+        "url": "https://www.youtube.com/user/123radiology",
+        "focus": "Ultrasound education for doctors, sonographers",
+        "description": "Lectures and cases ideal for medical students, radiologists, sonographers",
+        "cost": "Free"
+      },
+      {
+        "name": "The Sonography Studio",
+        "url": "https://www.youtube.com/@sonographystudio",
+        "focus": "OB/GYN, scanning techniques",
+        "hosts": "Julie & Rebecca (certified sonographers)",
+        "cost": "Free + paid tutoring"
+      },
+      {
+        "name": "My Ultrasound Tutor",
+        "url": "https://www.youtube.com/channel/UCqfEJrCjTkgECJ01B1Fa3mA",
+        "focus": "Physics SPI, OB/GYN, Vascular, Abdomen",
+        "cost": "Tutoring available"
+      },
+      {
+        "name": "Core Ultrasound",
+        "url": "https://coreultrasound.com/ob-gyn-scanning-technique-5ms/",
+        "focus": "Basic OB/GYN scanning technique",
+        "cost": "Free"
+      }
+    ],
+    "courses": [
+      {
+        "name": "Khan Academy - Human Anatomy & Physiology",
+        "url": "https://www.khanacademy.org/science/health-and-medicine/human-anatomy-and-physiology",
+        "topics": ["Tissues", "Integumentary system", "Muscular system", "Cardiovascular system", "Respiratory system", "Digestive system", "Nervous system"],
+        "cost": "Free"
+      },
+      {
+        "name": "OpenStax Anatomy & Physiology Textbook",
+        "url": "https://openstax.org/subjects/anatomy-and-physiology",
+        "topics": ["Levels of organization", "Support and movement", "Regulation", "Integration", "Homeostasis"],
+        "cost": "Free (PDF/online)"
+      },
+      {
+        "name": "ARDMS Exam Information",
+        "url": "https://www.ardms.org/get-certified/specialties/",
+        "certifications": ["RDMS (General)", "RDMS (Cardiac)", "RDMS (Vascular)", "RDMS (OB/GYN)"],
+        "exam_cost": "$200-250"
+      }
+    ],
+    "stats": {
+      "median_salary": "$89,340/year",
+      "job_growth": "13% (2024-2034)",
+      "annual_openings": "~5,800",
+      "exam_cost": "$200-250",
+      "source": "BLS May 2024"
+    }
+  }
+}
