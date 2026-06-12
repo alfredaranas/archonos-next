@@ -66,6 +66,15 @@ class MiniMaxProvider(Provider):
         self.api_key = os.environ.get("MINIMAX_API_KEY", "")
         self.model = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.5")
     
+    def chat(self, prompt: str, system: str = "", **kwargs) -> str:
+        if not self.api_key:
+            raise ValueError("MINIMAX_API_KEY not set")
+        messages = []
+        if system:
+            messages.append(Message(role="system", content=system))
+        messages.append(Message(role="user", content=prompt))
+        return self.complete(messages, **kwargs).content
+
     def complete(self, messages: list[Message], **kwargs) -> CompletionResult:
         import httpx
         resp = httpx.Client(timeout=120).post(
@@ -92,6 +101,15 @@ class OpenAIProvider(Provider):
         self.api_key = os.environ.get("OPENAI_API_KEY", "")
         self.model = os.environ.get("OPENAI_MODEL", "gpt-4o")
     
+    def chat(self, prompt: str, system: str = "", **kwargs) -> str:
+        if not self.api_key:
+            raise ValueError("MINIMAX_API_KEY not set")
+        messages = []
+        if system:
+            messages.append(Message(role="system", content=system))
+        messages.append(Message(role="user", content=prompt))
+        return self.complete(messages, **kwargs).content
+
     def complete(self, messages: list[Message], **kwargs) -> CompletionResult:
         import httpx
         resp = httpx.Client(timeout=120).post(
