@@ -1,10 +1,10 @@
-"""Memory operations — remember + recall."""
+"""Memory operations — persistent storage for decisions, lessons, state, notes."""
 
 from __future__ import annotations
 
 import sqlite3
+import json
 from dataclasses import dataclass
-from datetime import datetime
 
 
 @dataclass
@@ -43,16 +43,17 @@ def recall(
 ) -> list[Memory]:
     """Recall memories by query or kind."""
     if query:
-        # FTS5 search
+        # FTS5 search - use internal FTS table (no rowid column)
         sql = """
             SELECT m.id, m.kind, m.body, m.project, m.created_at, m.meta
-            FROM memories_fts f
-            JOIN memories m ON m.id = f.rowid
-            WHERE memories_fts MATCH ?
-            ORDER BY bm25(memories_fts)
+            FROM memories m
+            WHERE m.id IN (
+                SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
+            )
+            ORDER BY m.created_at DESC
             LIMIT ?
         """
-        cursor = conn.execute(sql, (f'"{query}"', limit))
+        cursor = conn.execute(sql, (query, limit))
     elif kind:
         sql = """
             SELECT id, kind, body, project, created_at, meta
@@ -73,17 +74,23 @@ def recall(
         cursor = conn.execute(sql, (project, limit))
     
     return [
-        Memory(id=r["id"], kind=r["kind"], body=r["body"],
-               project=r["project"], created_at=r["created_at"], meta=r["meta"])
+        Memory(
+            id=r[0],
+            kind=r[1],
+            body=r[2],
+            project=r[3],
+            created_at=r[4],
+            meta=r[5]
+        )
         for r in cursor.fetchall()
     ]
 
 
-def decisions(conn: sqlite3.Connection, project: str = "default") -> list[Memory]:
-    """Get all decisions for a project."""
-    return recall(conn, kind="decision", project=project)
+def decisions(conn: sqlite3.Connection, project: str = "default", limit: int = 10) -> list[Memory]:
+    """Recall all decisions."""
+    return recall(conn, kind="decision", project=project, limit=limit)
 
 
-def lessons(conn: sqlite3.Connection, project: str = "default") -> list[Memory]:
-    """Get all lessons for a project."""
-    return recall(conn, kind="lesson", project=project)
+def lessons(conn: sqlite3.Connection, project: str = "default", limit: int = 10) -> list[Memory]:
+    """Recall all lessons."""
+    return recall(conn, kind="lesson", project=project, limit=limit)
