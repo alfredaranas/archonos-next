@@ -151,6 +151,25 @@ def _cmd_llm_providers(args):
         print(p)
     return 0
 
+def _cmd_ask(args):
+    from archonos.knowledge import ask as kb_ask
+    from archonos.storage import db
+    conn = db.get_connection(args.project)
+    try:
+        try:
+            result = kb_ask.ask(conn, args.question, k=args.k,
+                                provider=args.provider or None,
+                                model=args.model or None)
+        except RuntimeError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        print(result.answer)
+        print()
+        print(f"-- grounded in {result.chunks_used} chunks via {result.provider}:{result.model}")
+        return 0
+    finally:
+        conn.close()
+
 def build_parser():
     p = argparse.ArgumentParser(prog="archonos", description="ArchonOS Next")
     p.add_argument("--version", action="version", version=f"archonos {__version__}")
@@ -216,6 +235,14 @@ def build_parser():
 
     sp_llm = sub.add_parser("llm-providers", help="list available LLM providers")
     sp_llm.set_defaults(fn=_cmd_llm_providers)
+
+    sp_ask = sub.add_parser("ask", help="ask a question grounded in the knowledge base (RAG)")
+    sp_ask.add_argument("question", help="natural language question")
+    sp_ask.add_argument("--project", default="default")
+    sp_ask.add_argument("-k", type=int, default=5, help="number of chunks to retrieve")
+    sp_ask.add_argument("--provider", default="", help="override provider (minimax/openai/anthropic)")
+    sp_ask.add_argument("--model", default="", help="override model")
+    sp_ask.set_defaults(fn=_cmd_ask)
 
     return p
 
