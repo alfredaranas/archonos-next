@@ -1,5 +1,7 @@
-"""ArchonOS Next package."""
+"""ArchonOS Next — local-first AI operating system.
 
-from archonos.core.version import __version__
+Knowledge, memory, workflows, continuity. The model is replaceable;
+the knowledge is durable.
+"""
 
-__all__ = ["__version__"]
+__version__ = "0.1.0"

@@ -13,11 +13,15 @@ authors = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
 [project.scripts]
 archonos = "archonos.cli.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/archonos"]
+include = ["src/archonos/storage/migrations/*.sql"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

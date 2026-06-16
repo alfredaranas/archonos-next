@@ -1,95 +1,80 @@
-"""ArchonOS CLI Kernel."""
+"""ArchonOS CLI — argparse dispatch only.
+
+Per docs/architecture/CORE_ARCHITECTURE.md §1: CLI formats, core returns data.
+Per §5: exit codes 0 ok · 1 user error · 2 system error.
+"""
 
 from __future__ import annotations
 
 import argparse
-import os
 import sys
-from pathlib import Path
 
-from archonos.config.settings import app_dir, database_path
-from archonos.core.constants import REQUIRED_DIRECTORIES
-from archonos.core.version import __version__
-from archonos.storage.sqlite import database_ok, initialize_database, table_count
+from archonos.core import ops
+
+__version__ = "0.1.0"
 
 
-def command_init(args: argparse.Namespace) -> int:
-    root = Path(args.path).resolve()
-    state_dir = app_dir(root)
-
-    for directory in REQUIRED_DIRECTORIES:
-        (state_dir / directory).mkdir(parents=True, exist_ok=True)
-
-    initialize_database(database_path(root))
-
-    print(f"ArchonOS initialized: {state_dir}")
-    print(f"Database: {database_path(root)}")
+def _cmd_init(args: argparse.Namespace) -> int:
+    r = ops.init(args.project)
+    verb = "Created" if r.created else "Verified"
+    print(f"{verb} project '{r.project}' at {r.db_path}")
+    if r.migrations_applied:
+        print(f"Applied migrations: {r.migrations_applied}")
     return 0
 
 
-def command_status(args: argparse.Namespace) -> int:
-    root = Path(args.path).resolve()
-    db_path = database_path(root)
-    db_status = "ready" if db_path.exists() and database_ok(db_path) else "missing"
-
-    print(f"Version: {__version__}")
-    print(f"Database Status: {db_status}")
-
-    if db_status == "ready":
-        print(f"Knowledge Count: {table_count(db_path, 'documents')}")
-        print(f"Memory Count: {table_count(db_path, 'memories')}")
-        print(f"Workflow Count: {table_count(db_path, 'workflows')}")
-    else:
-        print("Knowledge Count: 0")
-        print("Memory Count: 0")
-        print("Workflow Count: 0")
-
-    return 0 if db_status == "ready" else 1
+def _cmd_status(args: argparse.Namespace) -> int:
+    try:
+        s = ops.status(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    print(f"project:         {s.project}")
+    print(f"db:              {s.db_path}")
+    print(f"schema:          v{s.schema_version}")
+    print(f"documents:       {s.documents}")
+    print(f"chunks:          {s.chunks}")
+    print(f"memories:        {s.memories}")
+    print(f"workflows:       {s.workflows}")
+    print(f"workflow_runs:   {s.workflow_runs}")
+    return 0
 
 
-def command_healthcheck(args: argparse.Namespace) -> int:
-    root = Path(args.path).resolve()
-    state_dir = app_dir(root)
-    db_path = database_path(root)
-
-    checks = {
-        "Filesystem": state_dir.exists() and all((state_dir / d).exists() for d in REQUIRED_DIRECTORIES),
-        "Database": db_path.exists() and database_ok(db_path),
-        "Configuration": (state_dir / "config").exists(),
-        "Environment": sys.version_info >= (3, 11) and os.access(root, os.W_OK),
-    }
-
-    for name, ok in checks.items():
-        print(f"{name}: {'ok' if ok else 'fail'}")
-
-    return 0 if all(checks.values()) else 1
+def _cmd_healthcheck(args: argparse.Namespace) -> int:
+    h = ops.healthcheck(args.project)
+    for c in h.checks:
+        mark = "OK  " if c.ok else "FAIL"
+        print(f"[{mark}] {c.name}: {c.detail}")
+    return 0 if h.ok else 2
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="archonos", description="ArchonOS Next CLI Kernel")
-    parser.add_argument("--version", action="version", version=f"archonos {__version__}")
+    p = argparse.ArgumentParser(prog="archonos", description="ArchonOS Next — local-first AI operating system")
+    p.add_argument("--version", action="version", version=f"archonos {__version__}")
+    sub = p.add_subparsers(dest="command", required=True)
 
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    sp_init = sub.add_parser("init", help="create or verify a project")
+    sp_init.add_argument("--project", default="default")
+    sp_init.set_defaults(fn=_cmd_init)
 
-    init_parser = subparsers.add_parser("init", help="Initialize local ArchonOS project state")
-    init_parser.add_argument("--path", default=".", help="Project path to initialize")
-    init_parser.set_defaults(func=command_init)
+    sp_status = sub.add_parser("status", help="show project state")
+    sp_status.add_argument("--project", default="default")
+    sp_status.set_defaults(fn=_cmd_status)
 
-    status_parser = subparsers.add_parser("status", help="Display local ArchonOS status")
-    status_parser.add_argument("--path", default=".", help="Project path to inspect")
-    status_parser.set_defaults(func=command_status)
+    sp_hc = sub.add_parser("healthcheck", help="run health checks")
+    sp_hc.add_argument("--project", default="default")
+    sp_hc.set_defaults(fn=_cmd_healthcheck)
 
-    health_parser = subparsers.add_parser("healthcheck", help="Verify local ArchonOS environment")
-    health_parser.add_argument("--path", default=".", help="Project path to inspect")
-    health_parser.set_defaults(func=command_healthcheck)
-
-    return parser
+    return p
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    return int(args.func(args))
+    args = build_parser().parse_args(argv)
+    try:
+        return int(args.fn(args))
+    except Exception as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
