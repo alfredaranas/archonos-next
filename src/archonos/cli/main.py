@@ -2,8 +2,8 @@
 
 Per docs/architecture/CORE_ARCHITECTURE.md §1: CLI formats, core returns data.
 Per §5: exit codes 0 ok · 1 user error · 2 system error.
-CLI surface (M0.5 + M1 + M2 + M3):
-    init, status, healthcheck, import, search,
+CLI surface (M0.5 + M1 + M2 + M3 + M4):
+    init, status, healthcheck, import, search, remember, recall,
     workflow register/list/run/log
 """
 
@@ -17,6 +17,7 @@ from pathlib import Path
 from archonos.core import ops
 from archonos.knowledge import import_ as kb_import
 from archonos.knowledge import search as kb_search
+from archonos.memory import ops as mem_ops
 from archonos.storage import db
 from archonos.workflows import engine as wf_engine
 from archonos.workflows import registry as wf_registry
@@ -175,6 +176,54 @@ def _cmd_workflow_run(args: argparse.Namespace) -> int:
     return 0 if result.ok else 2
 
 
+def _cmd_recall(args: argparse.Namespace) -> int:
+    try:
+        conn = db.get_connection(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    try:
+        hits = mem_ops.recall(
+            conn,
+            query=args.query or "",
+            kind=args.kind,
+            project=args.project if args.project else None,
+            limit=args.limit,
+        )
+    finally:
+        conn.close()
+    if not hits:
+        print("No memories found")
+        return 0
+    for h in hits:
+        print(f"[{h.kind}] {h.created_at}  (rank {h.rank:.2f}, id={h.id})")
+        body = h.body
+        if len(body) > 220:
+            body = body[:217] + "…"
+        print(f"  {body}")
+    return 0
+
+
+def _cmd_remember(args: argparse.Namespace) -> int:
+    try:
+        conn = db.get_connection(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    try:
+        try:
+            mem_id = mem_ops.remember(
+                conn, args.kind, args.body, meta=None, project=args.project,
+            )
+        except ValueError as e:
+            print(f"Invalid memory: {e}", file=sys.stderr)
+            return 1
+    finally:
+        conn.close()
+    print(f"Memory stored: id={mem_id} kind={args.kind}")
+    return 0
+
+
 def _cmd_workflow_log(args: argparse.Namespace) -> int:
     try:
         conn = db.get_connection(args.project)
@@ -228,6 +277,19 @@ def build_parser() -> argparse.ArgumentParser:
     sp_search.add_argument("--project", default="default")
     sp_search.add_argument("--limit", "-k", type=int, default=10, dest="limit")
     sp_search.set_defaults(fn=_cmd_search)
+
+    sp_remember = sub.add_parser("remember", help="store a memory")
+    sp_remember.add_argument("body", help="memory content")
+    sp_remember.add_argument("--kind", default="note", help="decision, state, lesson, note, workflow_outcome")
+    sp_remember.add_argument("--project", default="default")
+    sp_remember.set_defaults(fn=_cmd_remember)
+
+    sp_recall = sub.add_parser("recall", help="recall memories (most recent, or by FTS5 query)")
+    sp_recall.add_argument("query", nargs="?", default="", help="optional FTS5 query")
+    sp_recall.add_argument("--kind", help="filter by kind")
+    sp_recall.add_argument("--project", default="default")
+    sp_recall.add_argument("--limit", "-k", type=int, default=10, dest="limit")
+    sp_recall.set_defaults(fn=_cmd_recall)
 
     # workflow subcommand group
     sp_wf = sub.add_parser("workflow", help="workflow operations")
