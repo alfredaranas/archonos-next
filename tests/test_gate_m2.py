@@ -10,6 +10,8 @@ Per docs/architecture/CORE_ARCHITECTURE.md §7:
 
 from __future__ import annotations
 
+import pytest
+
 import time
 from pathlib import Path
 
@@ -228,6 +230,79 @@ def test_search_no_results_returns_empty(isolated_home):
     finally:
         conn.close()
     assert hits == []
+
+
+def test_search_finds_terms_split_across_paragraphs(isolated_home):
+    """Regression: search must work on realistic abstract-shaped text.
+
+    The original _make_100_docs fixture put every topic word on one line
+    (`Topics: python kernel compilation`), so the FTS5 query
+    `"python" "kernel" "compilation"` (quote-then-space, which FTS5 reads
+    as three ADJACENT phrase tokens) accidentally passed.
+
+    Real arXiv abstracts put the same words in different paragraphs,
+    separated by sentences. That shape returned 0 rows from the kernel
+    and was only caught by a manual end-to-end demo on real arXiv data.
+
+    This test uses a doc with the target words in separate paragraphs
+    and also a singular/plural pair (`circuit` vs `circuits`) to exercise
+    the prefix-match fix that the same demo forced.
+
+    Per docs/architecture/CORE_ARCHITECTURE.md §4: search MUST return
+    ranked hits for natural-language queries.
+    """
+    docs = isolated_home / "corpus"
+    docs.mkdir(exist_ok=True)
+    (docs / "abstract-1.md").write_text(
+        "# Entanglement dynamics in hybrid quantum circuits\n\n"
+        "We investigate entanglement growth in systems that combine "
+        "unitary gates with measurement. The dynamics show universal "
+        "features across many circuit geometries.\n\n"
+        "The stat-mech perspective reveals connections to surface growth.\n",
+        encoding="utf-8",
+    )
+    (docs / "abstract-2.md").write_text(
+        "# Thunderstorm voltage sources\n\n"
+        "We model the global atmospheric electric circuit. Thunderstorm "
+        "generators act as voltage sources driving current upward to the "
+        "ionosphere.\n",
+        encoding="utf-8",
+    )
+
+    conn = db.get_connection()
+    try:
+        kb_import.import_path(conn, docs)
+    finally:
+        conn.close()
+
+    conn = db.get_connection()
+    try:
+        # 1. Multi-term query, terms split across paragraphs (the
+        #    adjacency bug). MUST find the entanglement paper.
+        hits = kb_search.search(conn, "entanglement hybrid circuit", k=5)
+        assert len(hits) >= 1, (
+            "search returned 0 hits for terms that exist in different "
+            "paragraphs of the corpus — FTS5 adjacency bug regressed"
+        )
+        # title is the filename; the body must contain the target phrase
+        assert "entanglement" in hits[0].snippet.lower()
+
+        # 2. Singular/plural: query `circuit` should match `circuits`.
+        #    FTS5 default tokenizer does not stem; this is fixed by the
+        #    `*` prefix expansion in search().
+        hits = kb_search.search(conn, "circuit", k=5)
+        assert len(hits) >= 1, (
+            "search returned 0 hits for `circuit` even though the doc "
+            "contains `circuits` — FTS5 stemmer is off and prefix "
+            "expansion regressed"
+        )
+
+        # 3. Two-term query with the right doc.
+        hits = kb_search.search(conn, "thunderstorm voltage", k=5)
+        assert len(hits) == 1
+        assert "thunderstorm" in hits[0].snippet.lower()
+    finally:
+        conn.close()
 
 
 # --- THE GATE: 100 docs, search < 200ms ---

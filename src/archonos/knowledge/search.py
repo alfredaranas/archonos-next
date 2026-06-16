@@ -80,13 +80,32 @@ def search(conn, query: str, k: int = 10):  # type: ignore[no-untyped-def]
     if k <= 0:
         return []
 
-    # FTS5 MATCH expression — quote each term to avoid syntax errors
-    # from user-supplied punctuation. FTS5 supports "..." for phrase
-    # and term1 term2 for AND. We do simple quoted-term-per-word.
-    terms = [t for t in re.split(r"\W+", query) if t]
+    # FTS5 MATCH expression.
+    #
+    # Two FTS5 quirks bit us during the TIER 2 demo on real arXiv data:
+    #
+    #  1. `"foo" "bar"` (quote-each, space-join) is three ADJACENT phrase
+    #     tokens, not three independent terms. Test docs happened to put
+    #     all topic words on one line, so this passed. Real abstracts
+    #     split them across paragraphs and silently returned 0 rows.
+    #     Fix: join with ` AND `.
+    #
+    #  2. FTS5 default `unicode61` tokenizer does NOT stem. Searching for
+    #     `circuit` does not match the indexed token `circuits`. We can't
+    #     change the tokenizer (schema is frozen at v1) so we append `*`
+    #     to every alphanumeric term, turning each into a prefix query.
+    #     `circuit*` matches `circuit`, `circuits`, `circuitry`, etc.
+    #     FTS5 prefix queries are O(prefix-length) per term; for typical
+    #     user queries (3-5 short terms) this is well under a millisecond.
+    import re as _re
+    terms = [t for t in _re.split(r"\W+", query) if t]
     if not terms:
         return []
-    fts_query = " ".join(f'"{t}"' for t in terms)
+    # Per-term prefix expansion: `"foo"* AND "bar"* AND ...` is valid
+    # FTS5 syntax. Quoting protects against FTS5-special chars in user
+    # input; the trailing `*` enables prefix matching so `circuit*`
+    # matches `circuit`, `circuits`, `circuitry`, etc.
+    fts_query = " AND ".join(f'"{t.rstrip("*")}"*' for t in terms)
 
     rows = conn.execute(
         "SELECT c.id AS chunk_id, "
