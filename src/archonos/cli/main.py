@@ -2,13 +2,15 @@
 
 Per docs/architecture/CORE_ARCHITECTURE.md §1: CLI formats, core returns data.
 Per §5: exit codes 0 ok · 1 user error · 2 system error.
-CLI surface (M0.5 + M1 + M2):
-    init, status, healthcheck, import, search
+CLI surface (M0.5 + M1 + M2 + M3):
+    init, status, healthcheck, import, search,
+    workflow register/list/run/log
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -16,6 +18,8 @@ from archonos.core import ops
 from archonos.knowledge import import_ as kb_import
 from archonos.knowledge import search as kb_search
 from archonos.storage import db
+from archonos.workflows import engine as wf_engine
+from archonos.workflows import registry as wf_registry
 
 __version__ = "0.1.0"
 
@@ -97,6 +101,106 @@ def _cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_workflow_register(args: argparse.Namespace) -> int:
+    spec_path = Path(args.spec_file).resolve()
+    if not spec_path.exists():
+        print(f"Spec file not found: {spec_path}", file=sys.stderr)
+        return 1
+    try:
+        spec_text = spec_path.read_text(encoding="utf-8")
+        spec = json.loads(spec_text)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Failed to load spec: {e}", file=sys.stderr)
+        return 1
+    try:
+        conn = db.get_connection(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    try:
+        wf_id = wf_registry.register(conn, args.name, spec)
+    except ValueError as e:
+        print(f"Invalid workflow spec: {e}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+    print(f"Workflow registered: {args.name} (id={wf_id})")
+    return 0
+
+
+def _cmd_workflow_list(args: argparse.Namespace) -> int:
+    try:
+        conn = db.get_connection(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    try:
+        wfs = wf_registry.list_(conn)
+    finally:
+        conn.close()
+    if not wfs:
+        print("No workflows registered")
+        return 0
+    for wf in wfs:
+        n_steps = len(wf.spec.get("steps", []))
+        print(f"{wf.name}: v{wf.version}, {n_steps} steps (id={wf.id})")
+    return 0
+
+
+def _cmd_workflow_run(args: argparse.Namespace) -> int:
+    try:
+        conn = db.get_connection(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    try:
+        # Parse --param key=value pairs into a dict
+        params: dict = {}
+        for p in args.param or []:
+            if "=" not in p:
+                print(f"Invalid --param: {p!r} (expected key=value)", file=sys.stderr)
+                return 1
+            k, v = p.split("=", 1)
+            params[k] = v
+        result = wf_engine.run(conn, args.name, params)
+    finally:
+        conn.close()
+    status_word = "succeeded" if result.ok else result.status
+    print(f"Run {result.run_id}: {status_word} ({len(result.log)} steps)")
+    for event in result.log:
+        marker = "OK  " if event["status"] == "ok" else "FAIL"
+        print(f"  [{marker}] {event['step']} ({event['type']})")
+        if event.get("error"):
+            print(f"         error: {event['error']}")
+    return 0 if result.ok else 2
+
+
+def _cmd_workflow_log(args: argparse.Namespace) -> int:
+    try:
+        conn = db.get_connection(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    try:
+        result = wf_engine.get_run(conn, args.run_id)
+    finally:
+        conn.close()
+    if result is None:
+        print(f"Run not found: {args.run_id}", file=sys.stderr)
+        return 1
+    print(f"Run {result.run_id} ({result.workflow_name}): {result.status}")
+    print(f"  started:  {result.started_at}")
+    print(f"  finished: {result.finished_at}")
+    print(f"  steps:    {len(result.log)}")
+    for event in result.log:
+        marker = "OK  " if event["status"] == "ok" else "FAIL"
+        keys = ", ".join(event.get("output_keys") or []) or "-"
+        print(f"  [{marker}] {event['step']} ({event['type']}) outputs=[{keys}]")
+        if event.get("error"):
+            print(f"           error: {event['error']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="archonos", description="ArchonOS Next — local-first AI operating system")
     p.add_argument("--version", action="version", version=f"archonos {__version__}")
@@ -124,6 +228,31 @@ def build_parser() -> argparse.ArgumentParser:
     sp_search.add_argument("--project", default="default")
     sp_search.add_argument("--limit", "-k", type=int, default=10, dest="limit")
     sp_search.set_defaults(fn=_cmd_search)
+
+    # workflow subcommand group
+    sp_wf = sub.add_parser("workflow", help="workflow operations")
+    wf_sub = sp_wf.add_subparsers(dest="wf_command", required=True)
+
+    sp_wf_reg = wf_sub.add_parser("register", help="register a workflow from a JSON spec file")
+    sp_wf_reg.add_argument("name", help="workflow name")
+    sp_wf_reg.add_argument("spec_file", help="path to JSON spec file")
+    sp_wf_reg.add_argument("--project", default="default")
+    sp_wf_reg.set_defaults(fn=_cmd_workflow_register)
+
+    sp_wf_list = wf_sub.add_parser("list", help="list registered workflows")
+    sp_wf_list.add_argument("--project", default="default")
+    sp_wf_list.set_defaults(fn=_cmd_workflow_list)
+
+    sp_wf_run = wf_sub.add_parser("run", help="run a workflow")
+    sp_wf_run.add_argument("name", help="workflow name")
+    sp_wf_run.add_argument("--param", action="append", help="key=value (repeatable)")
+    sp_wf_run.add_argument("--project", default="default")
+    sp_wf_run.set_defaults(fn=_cmd_workflow_run)
+
+    sp_wf_log = wf_sub.add_parser("log", help="show workflow run log")
+    sp_wf_log.add_argument("run_id", type=int, help="run id")
+    sp_wf_log.add_argument("--project", default="default")
+    sp_wf_log.set_defaults(fn=_cmd_workflow_log)
 
     return p
 
