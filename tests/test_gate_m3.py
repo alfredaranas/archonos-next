@@ -243,7 +243,9 @@ def test_run_three_step_workflow_succeeds(isolated_home):
 
 def test_run_persists_run_to_workflow_runs_table(isolated_home):
     """Per §3.4: each run is auditable in the database."""
-    spec = {"steps": [{"id": "s1", "type": "ask", "args": {"prompt": "hi"}}]}
+    # Use the search step (no provider required) instead of ask (which needs
+    # a configured LLM provider since M6).
+    spec = {"steps": [{"id": "s1", "type": "search", "args": {"query": "anything", "k": 3}}]}
     conn = db.get_connection()
     try:
         wf_registry.register(conn, "persist", spec)
@@ -262,14 +264,14 @@ def test_run_stops_on_first_failure(isolated_home):
     """Per §3.4: First failure stops the run, status=failed, partial log preserved."""
     spec = {
         "steps": [
-            {"id": "s1", "type": "ask", "args": {"prompt": "first"}},
+            {"id": "s1", "type": "search", "args": {"query": "first", "k": 3}},
             # s2 references a non-existent path on purpose
             {
                 "id": "s2",
                 "type": "import",
                 "args": {"path": "/this/path/does/not/exist/anywhere"},
             },
-            {"id": "s3", "type": "ask", "args": {"prompt": "never runs"}},
+            {"id": "s3", "type": "search", "args": {"query": "never runs", "k": 3}},
         ]
     }
     conn = db.get_connection()
@@ -410,7 +412,7 @@ def test_cli_workflow_list(isolated_home):
 def test_cli_workflow_run(isolated_home):
     spec_path = isolated_home / "spec.json"
     spec_path.write_text(
-        json.dumps({"steps": [{"id": "s1", "type": "ask", "args": {"prompt": "hi"}}]}),
+        json.dumps({"steps": [{"id": "s1", "type": "search", "args": {"query": "hi", "k": 3}}]}),
         encoding="utf-8",
     )
     main(["workflow", "register", "runme", str(spec_path)])

@@ -19,6 +19,7 @@ from archonos.core import ops
 from archonos.knowledge import import_ as kb_import
 from archonos.knowledge import search as kb_search
 from archonos.knowledge.sources import all_sources, parse_identifier, SourceError
+from archonos.llm import cli as llm_cli
 from archonos.memory import ops as mem_ops
 from archonos.storage import db
 from archonos.workflows import engine as wf_engine
@@ -375,6 +376,35 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp_src_list = sub.add_parser("list-sources", help="list available paper sources")
     sp_src_list.set_defaults(fn=_cmd_list_sources)
+
+    # LLM provider
+    sp_ask = sub.add_parser("ask", help="ask a question grounded in the knowledge base (requires LLM provider)")
+    sp_ask.add_argument("question", help="natural-language question")
+    sp_ask.add_argument("--project", default="default")
+    sp_ask.add_argument("--limit", "-k", type=int, default=5, dest="limit")
+    sp_ask.set_defaults(fn=llm_cli._cmd_ask)
+
+    sp_llm = sub.add_parser("llm-providers", help="show the active LLM provider config")
+    sp_llm.set_defaults(fn=llm_cli._cmd_llm_providers)
+
+    sp_cfg = sub.add_parser("config", help="read/write project settings (used for LLM config)")
+    cfg_sub = sp_cfg.add_subparsers(dest="cfg_command", required=True)
+    sp_cfg_get = cfg_sub.add_parser("get", help="read one key")
+    sp_cfg_get.add_argument("key")
+    sp_cfg_get.add_argument("--project", default="default")
+    sp_cfg_get.set_defaults(fn=llm_cli._cmd_llm_config, action="get")
+    sp_cfg_set = cfg_sub.add_parser("set", help="set one key")
+    sp_cfg_set.add_argument("key")
+    sp_cfg_set.add_argument("value")
+    sp_cfg_set.add_argument("--project", default="default")
+    sp_cfg_set.set_defaults(fn=llm_cli._cmd_llm_config, action="set")
+    sp_cfg_unset = cfg_sub.add_parser("unset", help="remove one key")
+    sp_cfg_unset.add_argument("key")
+    sp_cfg_unset.add_argument("--project", default="default")
+    sp_cfg_unset.set_defaults(fn=llm_cli._cmd_llm_config, action="unset")
+    sp_cfg_list = cfg_sub.add_parser("list", help="list all settings")
+    sp_cfg_list.add_argument("--project", default="default")
+    sp_cfg_list.set_defaults(fn=llm_cli._cmd_llm_config, action="list")
 
     sp_remember = sub.add_parser("remember", help="store a memory")
     sp_remember.add_argument("body", help="memory content")

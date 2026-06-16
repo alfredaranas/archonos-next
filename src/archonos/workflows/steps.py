@@ -173,13 +173,52 @@ def _shell_allowed(conn) -> bool:  # type: ignore[no-untyped-def]
 
 
 def step_ask(conn, args: dict[str, Any]) -> dict[str, Any]:
-    """LLM call. M6+ only; M3 ships as a no-op stub that returns a
-    'not configured' message and exits 0. Per §3.2 the registry lists ask
-    but per §6 implementation is gated on provider availability.
+    """LLM call grounded in the knowledge base.
+
+    Per CORE_ARCHITECTURE §6, this is the M6 step type. It calls
+    archonos.llm.ask, which does FTS5 retrieval + provider.complete().
+
+    Requires a configured provider. If unconfigured, raises
+    ProviderNotConfigured; the engine will fail this step and stop
+    the run (per §3.4 fail-fast).
     """
+    from archonos.llm import (
+        ProviderError,
+        ProviderNotConfigured,
+        ask as llm_ask,
+        get_provider,
+    )
+
+    question = args.get("prompt", "")
+    if not question:
+        # If 'prompt' is missing, treat the whole args dict content as the question
+        # (allows {{steps.X.something}} templating to flow through)
+        question = args.get("question") or ""
+    if not question:
+        raise ValueError("ask step requires a non-empty 'prompt' or 'question' arg")
+
+    k = int(args.get("k", 5))
+    system = args.get("system") or None
+
+    try:
+        provider = get_provider(conn)
+    except ProviderNotConfigured as e:
+        raise RuntimeError(str(e)) from e
+
+    try:
+        response = llm_ask(conn, question, k=k, provider=provider, system=system)
+    except ProviderError as e:
+        raise RuntimeError(f"ask step failed: {e}") from e
+
     return {
-        "text": "(ask step: M6 stub — provider not configured)",
-        "prompt": args.get("prompt", ""),
+        "text": response.text,
+        "finish_reason": response.finish_reason,
+        "usage": response.usage,
+        "tool_calls": [
+            {"id": tc.id, "name": tc.name, "arguments": tc.arguments}
+            for tc in response.tool_calls
+        ],
+        "prompt": question,
     }
 
 
