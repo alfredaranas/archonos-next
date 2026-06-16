@@ -6,6 +6,11 @@ Per docs/architecture/CORE_ARCHITECTURE.md §4:
 Per §1: pure functions, no printing.
 Per §2: documents table has sha256 UNIQUE for dedupe.
 Per BASE_PLAN.md M2: import md/txt into documents + chunks; FTS5 is the search story.
+
+Post-alpha extensions (M6+):
+    import_documents(conn, documents) -> ImportReport
+        Bulk-import a list of Document objects from any source
+        (arXiv, OpenAlex, Unpaywall, etc.) without writing to disk.
 """
 
 from __future__ import annotations
@@ -105,6 +110,58 @@ def import_path(conn, path) -> ImportReport:  # type: ignore[no-untyped-def]
                 (doc_id, idx, body, len(body)),
             )
             report.chunks_added += 1
+
+    conn.commit()
+    return report
+
+
+def import_documents(
+    conn,
+    documents: Iterable,  # Iterable[Document] from archonos.knowledge.sources
+) -> ImportReport:  # type: ignore[no-untyped-def]
+    """Bulk-import a list of Document objects (from any source) into
+    the knowledge base. Same dedupe contract as import_path: a document
+    whose sha256 already exists is skipped.
+
+    This is the integration point for the paper-source modules
+    (arXiv, OpenAlex, etc.) — the kernel doesn't care whether content
+    came from a local .md file or a remote API, only that it has the
+    right shape.
+    """
+    import json as _json
+    report = ImportReport()
+
+    for doc in documents:
+        try:
+            text = doc.content
+            digest = doc.sha256 or _sha256(text)
+            existing = conn.execute(
+                "SELECT id FROM documents WHERE sha256 = ?", (digest,)
+            ).fetchone()
+            if existing is not None:
+                report.skipped_dupes += 1
+                continue
+
+            byte_size = doc.byte_size or len(text.encode(ENCODING))
+            meta_json = _json.dumps(doc.to_meta())
+            cur = conn.execute(
+                "INSERT INTO documents(source_path, title, doc_type, sha256, byte_size, meta) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (doc.source_path, doc.title, doc.doc_type, digest, byte_size, meta_json),
+            )
+            doc_id = int(cur.lastrowid)
+            report.docs_added += 1
+
+            chunks = chunk_text(text)
+            for idx, body in enumerate(chunks):
+                conn.execute(
+                    "INSERT INTO chunks(document_id, chunk_idx, body, body_chars) "
+                    "VALUES (?, ?, ?, ?)",
+                    (doc_id, idx, body, len(body)),
+                )
+                report.chunks_added += 1
+        except Exception as e:
+            report.errors.append(f"{getattr(doc, 'source_path', '<unknown>')}: {type(e).__name__}: {e}")
 
     conn.commit()
     return report

@@ -2,8 +2,9 @@
 
 Per docs/architecture/CORE_ARCHITECTURE.md §1: CLI formats, core returns data.
 Per §5: exit codes 0 ok · 1 user error · 2 system error.
-CLI surface (M0.5 + M1 + M2 + M3 + M4):
+CLI surface (M0.5 + M1 + M2 + M3 + M4 + M6-sources):
     init, status, healthcheck, import, search, remember, recall,
+    fetch, search-sources,
     workflow register/list/run/log
 """
 
@@ -17,6 +18,7 @@ from pathlib import Path
 from archonos.core import ops
 from archonos.knowledge import import_ as kb_import
 from archonos.knowledge import search as kb_search
+from archonos.knowledge.sources import all_sources, parse_identifier, SourceError
 from archonos.memory import ops as mem_ops
 from archonos.storage import db
 from archonos.workflows import engine as wf_engine
@@ -99,6 +101,88 @@ def _cmd_search(args: argparse.Namespace) -> int:
     for h in hits:
         print(f"{h.doc_title}  (rank {h.rank:.2f}, chunk {h.chunk_id})")
         print(f"  {h.snippet}")
+    return 0
+
+
+def _cmd_fetch(args: argparse.Namespace) -> int:
+    """Fetch a paper from a remote source and import it."""
+    try:
+        scheme, ident = parse_identifier(args.identifier)
+    except SourceError as e:
+        print(f"fetch: {e}", file=sys.stderr)
+        return 1
+    sources = all_sources()
+    if scheme not in sources:
+        print(
+            f"fetch: unknown source {scheme!r}. Known: {sorted(sources)}",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        documents = sources[scheme].fetch(ident)
+    except SourceError as e:
+        print(f"fetch failed: {e}", file=sys.stderr)
+        return 2
+    try:
+        conn = db.get_connection(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    try:
+        report = kb_import.import_documents(conn, documents)
+    finally:
+        conn.close()
+    if not documents:
+        print(f"fetch: no documents returned for {args.identifier!r}")
+        return 1
+    print(f"Source:   {sources[scheme].name} ({scheme})")
+    print(f"Title:    {documents[0].title}")
+    print(f"Path:     {documents[0].source_path}")
+    print(f"Result:   {report.docs_added} added, {report.skipped_dupes} skipped (dupes)")
+    print(f"Chunks:   {report.chunks_added} added")
+    if report.errors:
+        print(f"Errors:   {len(report.errors)}", file=sys.stderr)
+        for e in report.errors:
+            print(f"  {e}", file=sys.stderr)
+        return 2
+    return 0
+
+
+def _cmd_search_sources(args: argparse.Namespace) -> int:
+    """Free-text search across one or all sources."""
+    sources = all_sources()
+    if args.source:
+        if args.source not in sources:
+            print(f"Unknown source: {args.source!r}. Known: {sorted(sources)}",
+                  file=sys.stderr)
+            return 1
+        target = {args.source: sources[args.source]}
+    else:
+        target = sources
+    total = 0
+    for name, src in target.items():
+        try:
+            docs = src.search(args.query, limit=args.limit)
+        except SourceError as e:
+            print(f"[{name}] {type(e).__name__}: {e}", file=sys.stderr)
+            continue
+        if not docs:
+            print(f"[{name}] no results")
+            continue
+        print(f"[{name}] {len(docs)} result(s):")
+        for d in docs:
+            print(f"  - {d.title[:80]}")
+            print(f"      {d.source_path}")
+            total += 1
+    print(f"\nTotal: {total} candidate(s). Use `archonos fetch <scheme>:<id>` to import.")
+    return 0
+
+
+def _cmd_list_sources(args: argparse.Namespace) -> int:
+    """List available paper sources."""
+    sources = all_sources()
+    for name, src in sources.items():
+        print(f"{name:12s}  {src.name:20s}  {src.base_url}")
     return 0
 
 
@@ -277,6 +361,20 @@ def build_parser() -> argparse.ArgumentParser:
     sp_search.add_argument("--project", default="default")
     sp_search.add_argument("--limit", "-k", type=int, default=10, dest="limit")
     sp_search.set_defaults(fn=_cmd_search)
+
+    sp_fetch = sub.add_parser("fetch", help="fetch a paper from a remote source and import it")
+    sp_fetch.add_argument("identifier", help="scheme:identifier (e.g. arxiv:2501.12345, doi:10.xxx/yyy, pmid:33212345)")
+    sp_fetch.add_argument("--project", default="default")
+    sp_fetch.set_defaults(fn=_cmd_fetch)
+
+    sp_src_search = sub.add_parser("search-sources", help="search remote paper sources (does not import)")
+    sp_src_search.add_argument("query", help="search query")
+    sp_src_search.add_argument("--source", help="restrict to one source (arxiv, openalex, pmid, ...)")
+    sp_src_search.add_argument("--limit", "-k", type=int, default=5, dest="limit")
+    sp_src_search.set_defaults(fn=_cmd_search_sources)
+
+    sp_src_list = sub.add_parser("list-sources", help="list available paper sources")
+    sp_src_list.set_defaults(fn=_cmd_list_sources)
 
     sp_remember = sub.add_parser("remember", help="store a memory")
     sp_remember.add_argument("body", help="memory content")

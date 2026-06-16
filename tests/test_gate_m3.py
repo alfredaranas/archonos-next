@@ -125,7 +125,9 @@ def test_list_workflows_returns_all(isolated_home):
 
 
 def test_step_registry_has_closed_v1_set(isolated_home):
-    expected = {"import", "search", "remember", "recall", "shell", "ask"}
+    # M3 shipped 6 step types. M6 added 'fetch' for paper sources.
+    # The set is closed in v1: adding a step type is a code + test change.
+    expected = {"import", "search", "remember", "recall", "shell", "ask", "fetch"}
     assert set(wf_steps.STEP_REGISTRY) == expected
 
 

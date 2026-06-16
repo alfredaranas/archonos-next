@@ -42,6 +42,38 @@ def step_import(conn, args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def step_fetch(conn, args: dict[str, Any]) -> dict[str, Any]:
+    """Fetch a paper from a remote source (arXiv, OpenAlex, PubMed,
+    Unpaywall, CORE, Crossref, DOAJ) and import it into the knowledge
+    base. Per CORE_ARCHITECTURE §3.2 step registry, this is a closed
+    step type added in M6+.
+    """
+    from archonos.knowledge import import_ as kb_import
+    from archonos.knowledge.sources import all_sources, parse_identifier, SourceError
+
+    identifier = args["identifier"]
+    sources = all_sources()
+    scheme, ident = parse_identifier(identifier)
+    if scheme not in sources:
+        raise ValueError(
+            f"fetch: unknown source scheme {scheme!r}. "
+            f"Known: {sorted(sources)}"
+        )
+    try:
+        documents = sources[scheme].fetch(ident)
+    except SourceError as e:
+        raise RuntimeError(f"fetch failed for {identifier!r}: {e}") from e
+    report = kb_import.import_documents(conn, documents)
+    return {
+        "source": scheme,
+        "identifier": ident,
+        "docs_added": report.docs_added,
+        "chunks_added": report.chunks_added,
+        "skipped_dupes": report.skipped_dupes,
+        "errors": report.errors,
+    }
+
+
 def step_search(conn, args: dict[str, Any]) -> dict[str, Any]:
     from archonos.knowledge import search as kb_search
 
@@ -156,6 +188,7 @@ def step_ask(conn, args: dict[str, Any]) -> dict[str, Any]:
 
 STEP_REGISTRY: dict[str, StepFn] = {
     "import": step_import,
+    "fetch": step_fetch,
     "search": step_search,
     "remember": step_remember,
     "recall": step_recall,
