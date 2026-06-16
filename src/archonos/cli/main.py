@@ -2,14 +2,20 @@
 
 Per docs/architecture/CORE_ARCHITECTURE.md §1: CLI formats, core returns data.
 Per §5: exit codes 0 ok · 1 user error · 2 system error.
+CLI surface (M0.5 + M1 + M2):
+    init, status, healthcheck, import, search
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from archonos.core import ops
+from archonos.knowledge import import_ as kb_import
+from archonos.knowledge import search as kb_search
+from archonos.storage import db
 
 __version__ = "0.1.0"
 
@@ -48,6 +54,49 @@ def _cmd_healthcheck(args: argparse.Namespace) -> int:
     return 0 if h.ok else 2
 
 
+def _cmd_import(args: argparse.Namespace) -> int:
+    path = Path(args.path).resolve()
+    if not path.exists():
+        print(f"Path not found: {path}", file=sys.stderr)
+        return 1
+    try:
+        conn = db.get_connection(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    try:
+        report = kb_import.import_path(conn, path)
+    finally:
+        conn.close()
+    print(f"Documents: {report.docs_added} added, {report.skipped_dupes} skipped (dupes)")
+    print(f"Chunks:    {report.chunks_added} added")
+    if report.errors:
+        print(f"Errors:    {len(report.errors)}", file=sys.stderr)
+        for e in report.errors:
+            print(f"  {e}", file=sys.stderr)
+        return 2
+    return 0
+
+
+def _cmd_search(args: argparse.Namespace) -> int:
+    try:
+        conn = db.get_connection(args.project)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    try:
+        hits = kb_search.search(conn, args.query, k=args.limit)
+    finally:
+        conn.close()
+    if not hits:
+        print("No results found")
+        return 0
+    for h in hits:
+        print(f"{h.doc_title}  (rank {h.rank:.2f}, chunk {h.chunk_id})")
+        print(f"  {h.snippet}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="archonos", description="ArchonOS Next — local-first AI operating system")
     p.add_argument("--version", action="version", version=f"archonos {__version__}")
@@ -64,6 +113,17 @@ def build_parser() -> argparse.ArgumentParser:
     sp_hc = sub.add_parser("healthcheck", help="run health checks")
     sp_hc.add_argument("--project", default="default")
     sp_hc.set_defaults(fn=_cmd_healthcheck)
+
+    sp_import = sub.add_parser("import", help="import files into the knowledge base")
+    sp_import.add_argument("path", help="file or directory to import (md/txt)")
+    sp_import.add_argument("--project", default="default")
+    sp_import.set_defaults(fn=_cmd_import)
+
+    sp_search = sub.add_parser("search", help="search the knowledge base")
+    sp_search.add_argument("query", help="search query")
+    sp_search.add_argument("--project", default="default")
+    sp_search.add_argument("--limit", "-k", type=int, default=10, dest="limit")
+    sp_search.set_defaults(fn=_cmd_search)
 
     return p
 
