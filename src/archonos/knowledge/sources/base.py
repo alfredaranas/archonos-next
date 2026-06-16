@@ -91,6 +91,14 @@ def parse_identifier(s: str) -> tuple[str, str]:
         "pmid:33212345"           -> ("pmid",   "33212345")
     """
     s = s.strip()
+    # HF sub-type prefixes (model:/dataset:/space:) — these all route to
+    # the `hf` scheme. The HuggingFaceSource then re-parses the kind from
+    # the prefix on its own. Without this alias, `model:foo` would be
+    # treated as a separate scheme that doesn't exist.
+    if ":" in s and not s.startswith("http"):
+        prefix = s.split(":", 1)[0].lower()
+        if prefix in ("model", "dataset", "space"):
+            return "hf", s
     if "://" in s:
         # Bare URL — map host to scheme
         host_to_scheme = {
@@ -102,6 +110,7 @@ def parse_identifier(s: str) -> tuple[str, str]:
             "core.ac.uk": "core",
             "doaj.org": "doaj",
             "oa.mg": "oamg",
+            "huggingface.co": "hf",
         }
         for host, scheme in host_to_scheme.items():
             if host in s:
@@ -118,7 +127,7 @@ def all_sources() -> dict[str, "Source"]:
     registers it. Returned by scheme name."""
     # Local imports to avoid circular dependencies and to keep import
     # time low (urllib is heavy if imported eagerly).
-    from archonos.knowledge.sources import arxiv, openalex, pubmed, unpaywall, core, crossref, doaj
+    from archonos.knowledge.sources import arxiv, openalex, pubmed, unpaywall, core, crossref, doaj, huggingface
 
     return {
         "arxiv": arxiv.ArxivSource(),
@@ -129,4 +138,5 @@ def all_sources() -> dict[str, "Source"]:
         "core": core.CORESource(),
         "crossref": crossref.CrossrefSource(),
         "doaj": doaj.DOAJSource(),
+        "hf": huggingface.HuggingFaceSource(),
     }

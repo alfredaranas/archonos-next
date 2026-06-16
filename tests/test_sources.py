@@ -75,6 +75,15 @@ def test_parse_identifier_url_forms():
     assert parse_identifier("https://pubmed.ncbi.nlm.nih.gov/33212345/") == ("pmid", "https://pubmed.ncbi.nlm.nih.gov/33212345/")
     assert parse_identifier("https://doi.org/10.1038/nature12373") == ("doi", "https://doi.org/10.1038/nature12373")
     assert parse_identifier("https://openalex.org/W2741809807") == ("openalex", "https://openalex.org/W2741809807")
+    assert parse_identifier("https://huggingface.co/google-bert/bert-base-uncased") == ("hf", "https://huggingface.co/google-bert/bert-base-uncased")
+
+
+def test_parse_identifier_hf_dataset_space_aliases():
+    # `dataset:` and `space:` are sub-types of `hf:` — they route to the
+    # Hugging Face source but the source re-parses the kind from the prefix.
+    assert parse_identifier("dataset:rajpurkar/squad") == ("hf", "dataset:rajpurkar/squad")
+    assert parse_identifier("space:gradio/chatbot") == ("hf", "space:gradio/chatbot")
+    assert parse_identifier("model:google-bert/bert-base-uncased") == ("hf", "model:google-bert/bert-base-uncased")
 
 
 def test_parse_identifier_rejects_bare():
@@ -85,9 +94,9 @@ def test_parse_identifier_rejects_bare():
 # --- registry ---
 
 
-def test_registry_has_all_8_sources():
+def test_registry_has_all_9_sources():
     srcs = all_sources()
-    expected = {"arxiv", "openalex", "pmid", "pmcid", "doi", "core", "crossref", "doaj"}
+    expected = {"arxiv", "openalex", "pmid", "pmcid", "doi", "core", "crossref", "doaj", "hf"}
     assert set(srcs) == expected
     for s in srcs.values():
         assert s.scheme
