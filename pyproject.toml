@@ -1,19 +1,17 @@
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
 
 [project]
 name = "archonos"
 version = "0.1.0"
-description = "ArchonOS Next — local-first AI operating system"
-requires-python = ">=3.10"
-dependencies = [
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
-    "jinja2>=3.1.0",
-    "python-multipart>=0.0.6",
-    "httpx>=0.25.0",
+description = "Local-first AI operating layer for knowledge, memory, workflows, and continuity."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "ArchonOS Next" }
 ]
+dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4"]
@@ -21,11 +19,10 @@ dev = ["pytest>=7.4"]
 [project.scripts]
 archonos = "archonos.cli.main:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/archonos"]
+include = ["src/archonos/storage/migrations/*.sql"]
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests"]
-
-[tool.setuptools.package-data]
-"archonos.storage" = ["migrations/*.sql"]
