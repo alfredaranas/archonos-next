@@ -15,12 +15,20 @@ import json
 import sys
 from pathlib import Path
 
+from archonos import scheduler
 from archonos.core import ops
 from archonos.knowledge import import_ as kb_import
 from archonos.knowledge import search as kb_search
 from archonos.knowledge.sources import all_sources, parse_identifier, SourceError
 from archonos.llm import cli as llm_cli
 from archonos.memory import ops as mem_ops
+from archonos.scheduler_cli import (
+    _cmd_schedule_add,
+    _cmd_schedule_enable,
+    _cmd_schedule_list,
+    _cmd_schedule_remove,
+    _cmd_scheduler_run,
+)
 from archonos.storage import db
 from archonos.workflows import engine as wf_engine
 from archonos.workflows import registry as wf_registry
@@ -76,7 +84,7 @@ def _cmd_import(args: argparse.Namespace) -> int:
         report = kb_import.import_path(conn, path)
     finally:
         conn.close()
-    print(f"Documents: {report.docs_added} added, {report.skipped_dupes} skipped (dupes)")
+    print(f"Documents: {report.docs_added} added, {report.skipped_dupes} skipped (dupes), {report.skipped_ignored} skipped (ignored)")
     print(f"Chunks:    {report.chunks_added} added")
     if report.errors:
         print(f"Errors:    {len(report.errors)}", file=sys.stderr)
@@ -443,6 +451,40 @@ def build_parser() -> argparse.ArgumentParser:
     sp_wf_log.add_argument("run_id", type=int, help="run id")
     sp_wf_log.add_argument("--project", default="default")
     sp_wf_log.set_defaults(fn=_cmd_workflow_log)
+
+    sp_wf_sched = wf_sub.add_parser("schedule", help="manage scheduled workflows")
+    sched_sub = sp_wf_sched.add_subparsers(dest="sched_command", required=True)
+    sp_wf_sched_ls = sched_sub.add_parser("list", help="list schedules")
+    sp_wf_sched_ls.add_argument("--project", default="default")
+    sp_wf_sched_ls.set_defaults(fn=_cmd_schedule_list)
+    sp_wf_sched_add = sched_sub.add_parser("add", help="add a schedule")
+    sp_wf_sched_add.add_argument("name", help="schedule name")
+    sp_wf_sched_add.add_argument("workflow", help="workflow name to run")
+    sp_wf_sched_add.add_argument("expr", help="5-field cron expression, e.g. '0 9 * * *'")
+    sp_wf_sched_add.add_argument("--param", action="append", help="key=value (repeatable)")
+    sp_wf_sched_add.add_argument("--project", default="default")
+    sp_wf_sched_add.set_defaults(fn=_cmd_schedule_add)
+    sp_wf_sched_rm = sched_sub.add_parser("remove", help="remove a schedule")
+    sp_wf_sched_rm.add_argument("name")
+    sp_wf_sched_rm.add_argument("--project", default="default")
+    sp_wf_sched_rm.set_defaults(fn=_cmd_schedule_remove)
+    sp_wf_sched_en = sched_sub.add_parser("enable", help="enable a schedule")
+    sp_wf_sched_en.add_argument("name")
+    sp_wf_sched_en.add_argument("--project", default="default")
+    sp_wf_sched_en.set_defaults(fn=lambda a: _cmd_schedule_enable(a, True))
+    sp_wf_sched_dis = sched_sub.add_parser("disable", help="disable a schedule")
+    sp_wf_sched_dis.add_argument("name")
+    sp_wf_sched_dis.add_argument("--project", default="default")
+    sp_wf_sched_dis.set_defaults(fn=lambda a: _cmd_schedule_enable(a, False))
+
+    # Top-level `archonos scheduler run` — the scheduler daemon
+    sp_sched_run = sub.add_parser("scheduler", help="run the workflow scheduler")
+    sched_run_sub = sp_sched_run.add_subparsers(dest="sched_run_command", required=True)
+    sp_sched_run_run = sched_run_sub.add_parser("run", help="run the scheduler loop")
+    sp_sched_run_run.add_argument("--once", action="store_true", help="run due schedules once and exit")
+    sp_sched_run_run.add_argument("--poll-seconds", type=int, default=30, help="how often to check for due schedules (default 30)")
+    sp_sched_run_run.add_argument("--project", default="default")
+    sp_sched_run_run.set_defaults(fn=_cmd_scheduler_run)
 
     return p
 
